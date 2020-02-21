@@ -1,6 +1,7 @@
 import math
 import statistics as stats
 import pandas as pd
+from sklearn.metrics import mean_absolute_error
 
 
 def high_null_count(df, thresh):
@@ -105,3 +106,34 @@ def clean_data(data):
     data_clean = data.drop(columns=['transactiondate', 'tubflag', 'fireplace'], axis=1)
 
     return data_clean
+
+
+def variable_selection_by_importance(drop_thresh, model, X_train, X_test, y_train, y_test):
+    model.fit(X_train, y_train)
+    important_features = pd.DataFrame(model.feature_importances_ / model.feature_importances_.max(),
+                                      index=X_train.columns, columns=['importance'])
+
+    # Print feature importance sort desc
+    print(important_features.sort_values('importance', ascending=False))
+
+    y_pred_gb = model.predict(X_test)
+    print("Current score with all features:")
+    print(mean_absolute_error(y_test, y_pred_gb))
+
+    # Select useless features to drop
+    useless_features = important_features[important_features['importance'] < drop_thresh]
+    drop_list = list(useless_features.index)
+    print("Features to drop:")
+    print(drop_list)
+
+    X_train_new = X_train.drop(columns=drop_list, axis=1)
+    X_test_new = X_test.drop(columns=drop_list, axis=1)
+
+    model.fit(X_train_new, y_train)
+
+    # New score for important features
+    y_pred_gb_new = model.predict(X_test_new)
+    print("New Mean Absolute Error")
+    print(mean_absolute_error(y_test, y_pred_gb_new))
+
+    return model
