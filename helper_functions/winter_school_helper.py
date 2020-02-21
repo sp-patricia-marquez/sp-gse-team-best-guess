@@ -152,9 +152,13 @@ def scaler_grid_search(model, X, y):
         score = mean_absolute_error(y_test, y_pred_gb)
         print("Scaler {} has a MAE score of: {}".format(scaler, score))
 
-def model_selecter(X, y, max_depth=30):
+def model_selecter(X, y, max_depth=30, scaler=None):
+    if scaler:
+        X = scaler.fit_transform(X)
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=69)
     leaf_nodes = list(range(2, max_depth+1))
+
     # Decision Tree
     dc_mae_score = []
     for x in range(2, 21):
