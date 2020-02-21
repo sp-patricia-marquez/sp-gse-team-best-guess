@@ -159,9 +159,10 @@ def scaler_grid_search(model, X, y):
         score = mean_absolute_error(y_test, y_pred_gb)
         print("Scaler {} has a MAE score of: {}".format(scaler, score))
 
+
 def model_selecter(X, y, max_depth=30, scaler=None):
     """
-    This does this
+    Creates graph of 3 different trees
     :param X: Feature data
     :param y: Target data
     :param max_depth: Max tree depth (optional)
