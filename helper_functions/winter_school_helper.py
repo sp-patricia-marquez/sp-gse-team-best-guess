@@ -143,6 +143,13 @@ def variable_selection_by_importance(drop_thresh, model, X_train, X_test, y_trai
     return model
 
 def scaler_grid_search(model, X, y):
+    """
+    Returns the mean absolute error score of each scaler
+    :param model: selected model
+    :param X: Feature data
+    :param y: Target data
+    :return: Prints the scaler and score
+    """
     scalers = [Normalizer(), StandardScaler(), MinMaxScaler(), RobustScaler(), MaxAbsScaler(), PowerTransformer()]
     for scaler in scalers:
         X_scaled = scaler.fit_transform(X)
@@ -153,6 +160,14 @@ def scaler_grid_search(model, X, y):
         print("Scaler {} has a MAE score of: {}".format(scaler, score))
 
 def model_selecter(X, y, max_depth=30, scaler=None):
+    """
+    This does this
+    :param X: Feature data
+    :param y: Target data
+    :param max_depth: Max tree depth (optional)
+    :param scaler: Scaler to use on feature data (optional)
+    :return:
+    """
     if scaler:
         X = scaler.fit_transform(X)
 
