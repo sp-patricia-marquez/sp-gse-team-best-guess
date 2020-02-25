@@ -1,8 +1,12 @@
 import math
 import statistics as stats
 import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
-
+from sklearn.preprocessing import Normalizer, StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, PowerTransformer
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 
 def high_null_count(df, thresh):
     """
@@ -137,3 +141,69 @@ def variable_selection_by_importance(drop_thresh, model, X_train, X_test, y_trai
     print(mean_absolute_error(y_test, y_pred_gb_new))
 
     return model
+
+def scaler_grid_search(model, X, y):
+    """
+    Returns the mean absolute error score of each scaler
+    :param model: selected model
+    :param X: Feature data
+    :param y: Target data
+    :return: Prints the scaler and score
+    """
+    scalers = [Normalizer(), StandardScaler(), MinMaxScaler(), RobustScaler(), MaxAbsScaler(), PowerTransformer()]
+    for scaler in scalers:
+        X_scaled = scaler.fit_transform(X)
+        X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=69)
+        model.fit(X_train, y_train)
+        y_pred_gb = model.predict(X_test)
+        score = mean_absolute_error(y_test, y_pred_gb)
+        print("Scaler {} has a MAE score of: {}".format(scaler, score))
+
+def model_selecter(X, y, max_depth=30, scaler=None):
+    """
+    This does this
+    :param X: Feature data
+    :param y: Target data
+    :param max_depth: Max tree depth (optional)
+    :param scaler: Scaler to use on feature data (optional)
+    :return:
+    """
+    if scaler:
+        X = scaler.fit_transform(X)
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=69)
+    leaf_nodes = list(range(2, max_depth+1))
+
+    # Decision Tree
+    dc_mae_score = []
+    for x in range(2, 21):
+        decisiontree = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=x)
+        decisiontree.fit(X_train, y_train)
+        y_pred_dc = decisiontree.predict(X_test)
+        dc_mae_score.append(mean_absolute_error(y_test, y_pred_dc))
+
+    # Random Forest
+    rf_mae_score = []
+    for x in range(2, 21):
+        forest = RandomForestRegressor(min_samples_split=100, max_depth=x)
+        forest.fit(X_train, y_train)
+        y_pred_f = forest.predict(X_test)
+        rf_mae_score.append(mean_absolute_error(y_test, y_pred_f))
+
+    # Gradient Boosting
+    gb_mae_score = []
+    for x in range(2, 21):
+        grd_boost = GradientBoostingRegressor(min_samples_split=100, max_depth=x, subsample=0.8)
+        grd_boost.fit(X_train, y_train)
+        y_pred_gb = grd_boost.predict(X_test)
+        gb_mae_score.append(mean_absolute_error(y_test, y_pred_gb))
+
+    # Plot results
+    plt.plot(leaf_nodes, dc_mae_score, label='Decision Tree', marker='.')
+    plt.plot(leaf_nodes, rf_mae_score, label='Random Forest', marker='.')
+    plt.plot(leaf_nodes, gb_mae_score, label='Gradient Boosting', marker='.')
+    plt.legend(loc="upper right")
+    plt.xlabel('Max Depth')
+    plt.ylabel('Mean Absolute Error')
+    plt.title('Mean Absolute Error By Tree Type')
+    plt.show()
