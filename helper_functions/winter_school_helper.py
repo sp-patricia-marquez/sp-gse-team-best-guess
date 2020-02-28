@@ -1,6 +1,7 @@
 import math
 import statistics as stats
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
@@ -110,6 +111,80 @@ def clean_data(data):
     data_clean = data.drop(columns=['transactiondate', 'tubflag', 'fireplace'], axis=1)
 
     return data_clean
+
+def clean_nulls(data, th_col = 0.9, th_row = 0.75):
+    # Drop all rows where parcelvalue is null
+    data = data[data['parcelvalue'].notnull()]
+
+    # Drop columns that have a very high number of null values
+    data = high_null_count(data, th_col)
+
+    # Drop rows that have more then 75% of the data missing
+    data = data.dropna(axis=0, thresh=len(data.columns) * th_row)
+
+    return data
+
+def fill_dummy_na(data):
+    # Replace null is "is" columns (one that should be ether 1 or 0)
+    data.taxdelinquencyflag = data.taxdelinquencyflag.fillna('N').replace(['Y', 'N'], [1, 0])
+
+    # Replace null is "is" columns (one that should be ether 1 or 0)
+    data[['fireplace', 'tubflag']] = data[['fireplace', 'tubflag']].fillna(False).astype(int)
+
+    # Aircon
+    # Assume all na are non aircon and change to 0/1. Drop ordinal column
+    data['is_aircond'] = [0 if (x == 5 or math.isnan(x)) else 1 for x in data['aircond']]
+    data = data.drop(columns='aircond', axis=1)
+
+    # Heating
+    # Assume all na are non heating and change to 0/1. Drop ordinal column
+    data['is_heating'] = [0 if (x == 13 or math.isnan(x)) else 1 for x in data['heatingtype']]
+    data = data.drop(columns='heatingtype', axis=1)
+
+    # Setting numbath numfullbath, 34bath as 0
+    data[['numfullbath', 'num34bath', 'numbath']] = data[['numfullbath', 'num34bath', 'numbath']].fillna(0)
+    data = data.drop(columns=['num34bath', 'numfullbath'], axis=1)
+
+    # Number of stories/pools/garage, if null then 0
+    data['numstories'] = data['numstories'].fillna(1)
+    data[['poolnum', 'garagenum']] = data[['poolnum', 'garagenum']].fillna(0)
+
+    # if unitnum is null assume only 1 building
+    data.unitnum = data.unitnum.fillna(1)
+
+    # Set garage area to 0 if null
+    data.garagearea = data.garagearea.fillna(0)
+    return data
+
+def impute_na(data):
+
+    # Fill lot area and finished area with median
+    data['lotarea'] = data.lotarea.fillna(stats.median(data['lotarea']))
+    data['finishedarea'] = data.finishedarea.fillna(stats.median(data['finishedarea']))
+
+    # filling quality build column
+    #print(train.corr().loc['qualitybuild',:])
+    #train.boxplot('qualitybuild', 'numstories')
+    #plt.show()
+
+    #corrmat = train.corr()
+    #plt.subplots(figsize=(12, 9))
+    #sns.heatmap(corrmat, vmax=0.9, square=True)
+
+    # Fill qualitybuild based on num stories (highest correlation)
+    mask_1 = data['numstories'] == 1
+    mask_1_val = np.nanmedian(data.loc[mask_1, 'qualitybuild'])
+
+    mask_2 = data['numstories'] >= 2
+    mask_2_val = np.nanmedian(data.loc[mask_2, 'qualitybuild'])
+
+    data.loc[mask_1, 'qualitybuild'] = data.loc[mask_1, 'qualitybuild'].fillna(mask_1_val)
+    data.loc[mask_2, 'qualitybuild'] = data.loc[mask_2, 'qualitybuild'].fillna(mask_2_val)
+
+    # year
+    data.year = data.year.fillna(np.nanmedian(data.year))
+
+    return data
 
 
 def variable_selection_by_importance(drop_thresh, model, X_train, X_test, y_train, y_test):
