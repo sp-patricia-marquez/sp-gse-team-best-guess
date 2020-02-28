@@ -3,6 +3,8 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt  # Matlab-style plotting
 import seaborn as sns
 import helper_functions.winter_school_helper as hf
+from sklearn.cluster import KMeans
+import random
 
 color = sns.color_palette()
 sns.set_style('darkgrid')
@@ -84,7 +86,6 @@ plt.show()
 sum(train['parcelvalue_log']<8) # how many?
 train = train.drop(train[(train['parcelvalue_log']<8)].index)
 
-
 # NULL VALUES
 train_na = (train.isnull().sum() / len(train)) * 100
 train_na = train_na.drop(train_na[train_na == 0].index).sort_values(ascending=False)[:30]
@@ -92,9 +93,9 @@ missing_data = pd.DataFrame({'Missing Ratio' :train_na})
 missing_data.head(20)
 
 f, ax = plt.subplots(figsize=(15, 12))
-plt.xticks(rotation='90')
+plt.xticks(rotation='35')
 sns.barplot(x=train_na.index, y=train_na)
-plt.xlabel('Features', fontsize=15)
+plt.xlabel('Features', fontsize=20)
 plt.ylabel('Percent of missing values', fontsize=15)
 plt.title('Percent missing data by feature', fontsize=15)
 
@@ -128,7 +129,7 @@ clean_train['transactiondate'] = pd.to_datetime(clean_train['transactiondate'])
 clean_train['transactiondate'] = clean_train.transactiondate.apply(lambda x: x.strftime('%Y-%m'))
 
 
-var = 'transactiondate'
+var = 'year'
 data = pd.concat([clean_train['parcelvalue'], clean_train[var]], axis=1)
 f, ax = plt.subplots(figsize=(16, 8))
 fig = sns.boxplot(x=var, y='parcelvalue', data=data, showfliers= False)
@@ -136,7 +137,26 @@ fig.axis(ymin=0, ymax=800000);
 plt.xticks(rotation=90);
 plt.show()
 
-#transaction date seems to have no
+#YEAR, CHECK CLUSTERING OF YEAR TO BIN THE FEATURE TO THEN MAKE DUMMY VALUES
+year_x = clean_train[['parcelvalue_log', 'year']]
+wcss = []
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, random_state=0)
+    kmeans.fit(year_x)
+    wcss.append(kmeans.inertia_)
 
+plt.plot(range(1, 11), wcss)
+plt.show()
+
+# Best out come is n_cluster = 5
+# Set random seed
+random.seed(69)
+kmeans = KMeans(n_clusters=5, random_state=0)
+kmeans.fit(year_x)
+print(kmeans.labels_)
+
+clean_train['year_cat'] = kmeans.labels_
+
+clean_train = clean_train.drop(columns=['year'], axis=1)
 
 # Data Correlation ----------------------------------------------------------------------------------------
