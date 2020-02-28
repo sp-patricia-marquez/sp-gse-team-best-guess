@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from helper_functions.winter_school_helper import clean_data, remove_low_corr_columns
+from helper_functions.winter_school_helper import clean_data
 from sklearn.metrics import mean_absolute_error
 import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeRegressor
@@ -9,8 +9,8 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 import seaborn as sns
 sns.set()
 # Read in the data
-test = pd.read_csv('Data/Regression_Supervised_Test_1.csv', index_col='lotid')
-train = pd.read_csv('Data/Regression_Supervised_Train.csv', index_col='lotid')
+test = pd.read_csv('sp-crush-enemies/Data/Regression_Supervised_Test_1.csv', index_col='lotid')
+train = pd.read_csv('sp-crush-enemies/Data/Regression_Supervised_Train.csv', index_col='lotid')
 # join the data together
 joined_data = pd.concat([test, train])
 # Training the model
@@ -55,32 +55,32 @@ plt.show()
 
 
 # Stability Check of our model
- test_accuracy_argmax = []  # the maximal test accuracy achieved for each split
- importance_char = []  # the variable char_! importance
+test_accuracy_argmax = []  # the maximal test accuracy achieved for each split
+importance_char = []  # the variable char_! importance
 #
- for bootsam in np.arange(100):
-     # split randomly dataset; do not fix the seed to see variation
-     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
-     #
-     # First search for depth
-     test_accuracy = []
-     complexity_value = []
-     for max_leaf_nodes in np.arange(8, 12):
-         grd_boost = GradientBoostingRegressor(min_samples_split=100, max_depth=max_leaf_nodes, n_estimators=50, subsample=0.8)
-         grd_boost.fit(X_train, y_train)
-         y_pred = grd_boost.predict(X_test)
-         test_accuracy.append(mean_absolute_error(y_test, y_pred))
-         complexity_value.append(max_leaf_nodes)
-     test_accuracy_argmax.append(complexity_value[np.argmin(test_accuracy)])
-     #
-     # print(f"Optimum max leaf {complexity_value[np.argmax(test_accuracy)]}")
-     # Then find and store the relative importance of fare for the chosen tree
-
-     leaf_node_chosen=complexity_value[np.argmin(test_accuracy)]
-     grd_boost =  GradientBoostingRegressor(min_samples_split=100, max_depth=leaf_node_chosen, n_estimators=50, subsample=0.8)
+for bootsam in np.arange(100):
+ # split randomly dataset; do not fix the seed to see variation
+ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+ #
+ # First search for depth
+ test_accuracy = []
+ complexity_value = []
+ for max_leaf_nodes in np.arange(8, 12):
+     grd_boost = GradientBoostingRegressor(min_samples_split=100, max_depth=max_leaf_nodes, n_estimators=50, subsample=0.8)
      grd_boost.fit(X_train, y_train)
-     important_features = pd.DataFrame(grd_boost.feature_importances_ / grd_boost.feature_importances_.max(), index=X.columns,
-                                       columns=['importance'])
+     y_pred = grd_boost.predict(X_test)
+     test_accuracy.append(mean_absolute_error(y_test, y_pred))
+     complexity_value.append(max_leaf_nodes)
+ test_accuracy_argmax.append(complexity_value[np.argmin(test_accuracy)])
+ #
+ # print(f"Optimum max leaf {complexity_value[np.argmax(test_accuracy)]}")
+ # Then find and store the relative importance of fare for the chosen tree
+
+ leaf_node_chosen=complexity_value[np.argmin(test_accuracy)]
+ grd_boost =  GradientBoostingRegressor(min_samples_split=100, max_depth=leaf_node_chosen, n_estimators=50, subsample=0.8)
+ grd_boost.fit(X_train, y_train)
+ important_features = pd.DataFrame(grd_boost.feature_importances_ / grd_boost.feature_importances_.max(), index=X.columns,
+                                   columns=['importance'])
 
 # Print the results in a convenient manner
 result = pd.DataFrame(test_accuracy_argmax, columns=["depth"])

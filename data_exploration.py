@@ -2,7 +2,7 @@ import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt  # Matlab-style plotting
 import seaborn as sns
-from helper_functions.winter_school_helper import clean_data, remove_low_corr_columns
+
 
 color = sns.color_palette()
 sns.set_style('darkgrid')
@@ -19,7 +19,7 @@ pd.set_option('display.float_format', lambda x: '{:.3f}'.format(x)) #Limiting fl
 sns.set()
 
 # Read in the data --------------------------------------------------------------------
-train = pd.read_csv('Data/Regression_Supervised_Train.csv', index_col='lotid')
+train = pd.read_csv('sp-crush-enemies/Data/Regression_Supervised_Train.csv', index_col='lotid')
 # Drop all rows where parcelvalue is null
 train = train[train['parcelvalue'].notnull()]
 
@@ -86,7 +86,7 @@ plt.show()
 # Remove empty columns
 
 
-data_f = data.drop(columns=['parcelvalue','parcelvalue_log'], axis=1)
+data_f = train.drop(columns=['parcelvalue','parcelvalue_log'], axis=1)
 
 all_data_na = (data_f.isnull().sum() / len(data_f)) * 100
 all_data_na = all_data_na.drop(all_data_na[all_data_na == 0].index).sort_values(ascending=False)[:30]
