@@ -3,6 +3,8 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt  # Matlab-style plotting
 import seaborn as sns
 import helper_functions.winter_school_helper as hf
+from sklearn.cluster import KMeans
+import random
 
 color = sns.color_palette()
 sns.set_style('darkgrid')
@@ -19,7 +21,7 @@ pd.set_option('display.float_format', lambda x: '{:.3f}'.format(x)) #Limiting fl
 sns.set()
 
 # Read in the data --------------------------------------------------------------------
-train = pd.read_csv('sp-crush-enemies/Data/Regression_Supervised_Train.csv', index_col='lotid')
+train = pd.read_csv('Data/Regression_Supervised_Train.csv', index_col='lotid')
 # Drop all rows where parcelvalue is null
 train = train[train['parcelvalue'].notnull()]
 
@@ -91,9 +93,9 @@ missing_data = pd.DataFrame({'Missing Ratio' :train_na})
 missing_data.head(20)
 
 f, ax = plt.subplots(figsize=(15, 12))
-plt.xticks(rotation='90')
+plt.xticks(rotation='35')
 sns.barplot(x=train_na.index, y=train_na)
-plt.xlabel('Features', fontsize=15)
+plt.xlabel('Features', fontsize=20)
 plt.ylabel('Percent of missing values', fontsize=15)
 plt.title('Percent missing data by feature', fontsize=15)
 
@@ -127,7 +129,7 @@ clean_train['transactiondate'] = pd.to_datetime(clean_train['transactiondate'])
 clean_train['transactiondate'] = clean_train.transactiondate.apply(lambda x: x.strftime('%Y-%m'))
 
 
-var = 'transactiondate'
+var = 'year'
 data = pd.concat([clean_train['parcelvalue'], clean_train[var]], axis=1)
 f, ax = plt.subplots(figsize=(16, 8))
 fig = sns.boxplot(x=var, y='parcelvalue', data=data, showfliers= False)
@@ -135,7 +137,26 @@ fig.axis(ymin=0, ymax=800000);
 plt.xticks(rotation=90);
 plt.show()
 
-#transaction date seems to have no
+#YEAR, CHECK CLUSTERING OF YEAR TO BIN THE FEATURE TO THEN MAKE DUMMY VALUES
+year_x = clean_train[['parcelvalue_log', 'year']]
+wcss = []
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, random_state=0)
+    kmeans.fit(year_x)
+    wcss.append(kmeans.inertia_)
 
+plt.plot(range(1, 11), wcss)
+plt.show()
+
+# Best out come is n_cluster = 5
+# Set random seed
+random.seed(69)
+kmeans = KMeans(n_clusters=5, random_state=0)
+kmeans.fit(year_x)
+print(kmeans.labels_)
+
+clean_train['year_cat'] = kmeans.labels_
+
+clean_train = clean_train.drop(columns=['year'], axis=1)
 
 # Data Correlation ----------------------------------------------------------------------------------------
