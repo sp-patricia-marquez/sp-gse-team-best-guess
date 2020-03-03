@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt  # Matlab-style plotting
 import seaborn as sns
 import helper_functions.winter_school_helper as hf
 from sklearn.cluster import KMeans
+from sklearn.preprocessing import Normalizer
 import random
 
 color = sns.color_palette()
@@ -124,9 +125,12 @@ missing_data.head(20)
 clean_train = clean_train.drop(columns=['neighborhoodcode','citycode','regioncode'], axis=1)
 
 # Dummy Variables
-
 clean_train['transactiondate'] = pd.to_datetime(clean_train['transactiondate'])
 clean_train['transactiondate'] = clean_train.transactiondate.apply(lambda x: x.strftime('%Y-%m'))
+
+# Drop more outlying data in unitnum column
+print(clean_train.unitnum.value_counts())
+clean_train = clean_train[clean_train['unitnum'] < 7]
 
 
 var = 'year'
@@ -159,4 +163,43 @@ clean_train['year_cat'] = kmeans.labels_
 
 clean_train = clean_train.drop(columns=['year'], axis=1)
 
+# Dropping countycode2 as dupe of countycode
+clean_train = clean_train.drop(columns=['countycode2'], axis=1)
+
+# Dummy Data & Categorical data----------------------------------------------------
+dummy_columns = ['countycode', 'taxyear', 'numstories', 'year_cat']
+clean_train = pd.get_dummies(clean_train, columns=dummy_columns, drop_first=True)
+
 # Data Correlation ----------------------------------------------------------------------------------------
+
+
+# Scaling and training ------------------------------------------------------------------------------------
+cat_data = ['tubflag',
+            'poolnum',
+            'fireplace',
+            'numbath',
+            'numbedroom',
+            'qualitybuild',
+            'numfireplace',
+            'garagenum',
+            'roomnum',
+            'unitnum',
+            'taxdelinquencyflag',
+            'is_aircond',
+            'is_heating',
+            'countycode_6059.0',
+            'countycode_6111.0',
+            'taxyear_2016.0',
+            'numstories_2.0',
+            'numstories_3.0',
+            'numstories_4.0',
+            'year_cat_1',
+            'year_cat_2',
+            'year_cat_3',
+            'year_cat_4']
+cont_data = [x for x in list(clean_train.columns) if x not in cat_data]
+
+# from sklearn.compose import ColumnTransformer
+# from sklearn.preprocessing import Normalizer, StandardScaler
+# column_trans = ColumnTransformer([('scaler', StandardScaler(),2], remainder='passthrough')
+# column_trans.fit_transform(X)
