@@ -169,7 +169,7 @@ clean_train = clean_train.drop(columns=['countycode2'], axis=1)
 dummy_columns = ['countycode', 'taxyear', 'numstories', 'year_cat']
 clean_train = pd.get_dummies(clean_train, columns=dummy_columns, drop_first=True)
 
-# Data Correlation ----------------------------------------------------------------------------------------
+# Data outlier cleaning ----------------------------------------------------------------------------------------
 
 # Need to so something about lotarea
 sns.distplot(clean_train['lotarea'], fit=norm)
@@ -181,6 +181,18 @@ clean_train = clean_train.drop(clean_train[clean_train['lotarea'] > 50000].index
 
 sns.distplot(clean_train['lotarea'], fit=norm)
 plt.title('Distribution of Lotarea After Drop', fontsize=15)
+plt.show()
+
+# Need to do the same with 'finishedarea'
+sns.distplot(clean_train['finishedarea'], fit=norm)
+plt.title('Distribution of finishedarea', fontsize=15)
+plt.show()
+
+# Going to drop all row with finishedarea over 6,000
+clean_train = clean_train.drop(clean_train[clean_train['finishedarea'] > 6000].index)
+
+sns.distplot(clean_train['finishedarea'], fit=norm)
+plt.title('Distribution of finishedarea', fontsize=15)
 plt.show()
 
 # Scaling and training ------------------------------------------------------------------------------------
@@ -326,3 +338,13 @@ decisiontree_normalizer = DecisionTreeRegressor(min_samples_split=100, max_leaf_
 decisiontree_normalizer.fit(X_train_normalizer, y_train)
 y_pred_dc_normalizer = decisiontree_normalizer.predict(X_test_normalizer)
 print("Normalizer score: {}".format(mean_absolute_error(y_test, y_pred_dc_normalizer)))
+
+
+# Checking column correlation
+columns = list(clean_train.columns)
+columns.remove('parcelvalue_log')
+correlation_dict = {}
+for col in columns:
+    corr = clean_train['parcelvalue_log'].corr(clean_train[col])
+    correlation_dict[col] = round(corr, 5)
+    print("Column: {} has a correlation of {}".format(col, round(corr, 5)))
