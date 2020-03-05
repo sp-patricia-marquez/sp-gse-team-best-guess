@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt  # Matlab-style plotting
 import seaborn as sns
 import helper_functions.winter_school_helper as hf
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import Normalizer
 import random
 
 color = sns.color_palette()
@@ -172,8 +171,27 @@ clean_train = pd.get_dummies(clean_train, columns=dummy_columns, drop_first=True
 
 # Data Correlation ----------------------------------------------------------------------------------------
 
+# Need to so something about lotarea
+sns.distplot(clean_train['lotarea'], fit=norm)
+plt.title('Distribution of Lotarea', fontsize=15)
+plt.show()
+
+# Going to drop all row with lot area over 50,000
+clean_train = clean_train.drop(clean_train[clean_train['lotarea'] > 50000].index)
+
+sns.distplot(clean_train['lotarea'], fit=norm)
+plt.title('Distribution of Lotarea After Drop', fontsize=15)
+plt.show()
 
 # Scaling and training ------------------------------------------------------------------------------------
+# Need to drop 'transactiondate' as it is an object and parcelvalue as we have parcelvalue_log
+clean_train = clean_train.drop(columns=['parcelvalue', 'transactiondate'], axis=1)
+
+# Split data into feature and target (X, y)
+X = clean_train.drop(columns=['parcelvalue_log'], axis=1)
+y = clean_train['parcelvalue_log']
+
+# select the categorical data
 cat_data = ['tubflag',
             'poolnum',
             'fireplace',
@@ -197,9 +215,114 @@ cat_data = ['tubflag',
             'year_cat_2',
             'year_cat_3',
             'year_cat_4']
-cont_data = [x for x in list(clean_train.columns) if x not in cat_data]
 
-# from sklearn.compose import ColumnTransformer
-# from sklearn.preprocessing import Normalizer, StandardScaler
-# column_trans = ColumnTransformer([('scaler', StandardScaler(),2], remainder='passthrough')
-# column_trans.fit_transform(X)
+# Select the continuous data
+cont_data = [x for x in list(X.columns) if x not in cat_data]
+
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, Normalizer
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=69)
+
+# Getting a score for the non scaled data to compare against
+decisiontree = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=15)
+decisiontree.fit(X_train, y_train)
+y_pred_dc = decisiontree.predict(X_test)
+print("Non Scaler score: {}".format(mean_absolute_error(y_test, y_pred_dc)))
+
+# Perform Standard Scaling on only the continuous data
+scaler = StandardScaler()
+# Copy X_train & X_test so we can keep the original to compare against
+X_train_standardscaler = X_train.copy()
+X_test_standardscaler = X_test.copy()
+
+# Fit the scalar on the train data then transform both the train and test data
+X_train_standardscaler[cont_data] = scaler.fit_transform(X_train_standardscaler[cont_data])
+X_test_standardscaler[cont_data] = scaler.transform(X_test_standardscaler[cont_data])
+
+
+# Check the results
+fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(6, 5))
+
+ax1.set_title('Before Scaling')
+sns.kdeplot(X_train['finishedarea'], ax=ax1)
+sns.kdeplot(X_train['latitude'], ax=ax1)
+sns.kdeplot(X_train['longitude'], ax=ax1)
+sns.kdeplot(X_train['lotarea'], ax=ax1)
+ax2.set_title('After Standard Scaler')
+sns.kdeplot(X_train_standardscaler['finishedarea'], ax=ax2)
+sns.kdeplot(X_train_standardscaler['latitude'], ax=ax2)
+sns.kdeplot(X_train_standardscaler['longitude'], ax=ax2)
+sns.kdeplot(X_train_standardscaler['lotarea'], ax=ax2)
+plt.show()
+
+# perform a Decision Tree Regression on the scaled data
+decisiontree_standardscaler = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=15)
+decisiontree_standardscaler.fit(X_train_standardscaler, y_train)
+y_pred_dc_standardscaler = decisiontree_standardscaler.predict(X_test_standardscaler)
+print("Standard Scaler score: {}".format(mean_absolute_error(y_test, y_pred_dc_standardscaler)))
+
+
+# Perform MinMax Scaling on only the continuous data
+scaler = MinMaxScaler()
+# Copy X_train & X_test so we can keep the original to compare against
+X_train_minmax = X_train.copy()
+X_test_minmax = X_test.copy()
+
+# Fit the scalar on the train data then transform both the train and test data
+X_train_minmax[cont_data] = scaler.fit_transform(X_train_minmax[cont_data])
+X_test_minmax[cont_data] = scaler.transform(X_test_minmax[cont_data])
+
+# Check the results
+fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(6, 5))
+
+ax1.set_title('Before Scaling')
+sns.kdeplot(X_train['finishedarea'], ax=ax1)
+sns.kdeplot(X_train['latitude'], ax=ax1)
+sns.kdeplot(X_train['longitude'], ax=ax1)
+sns.kdeplot(X_train['lotarea'], ax=ax1)
+ax2.set_title('After MinMax Scaler')
+sns.kdeplot(X_train_minmax['finishedarea'], ax=ax2)
+sns.kdeplot(X_train_minmax['latitude'], ax=ax2)
+sns.kdeplot(X_train_minmax['longitude'], ax=ax2)
+sns.kdeplot(X_train_minmax['lotarea'], ax=ax2)
+plt.show()
+
+# perform a Decision Tree Regression on the scaled data
+decisiontree_minmax = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=15)
+decisiontree_minmax.fit(X_train_minmax, y_train)
+y_pred_dc_minmax = decisiontree_minmax.predict(X_test_minmax)
+print("Min Max score: {}".format(mean_absolute_error(y_test, y_pred_dc_minmax)))
+
+
+# Perform Normalizer Scaling on only the continuous data
+scaler = Normalizer()
+# Copy X_train & X_test so we can keep the original to compare against
+X_train_normalizer = X_train.copy()
+X_test_normalizer = X_test.copy()
+
+# Fit the scalar on the train data then transform both the train and test data
+X_train_normalizer[cont_data] = scaler.fit_transform(X_train_normalizer[cont_data])
+X_test_normalizer[cont_data] = scaler.transform(X_test_normalizer[cont_data])
+
+# Check the results
+fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(6, 5))
+
+ax1.set_title('Before Scaling')
+sns.kdeplot(X_train['finishedarea'], ax=ax1)
+sns.kdeplot(X_train['latitude'], ax=ax1)
+sns.kdeplot(X_train['longitude'], ax=ax1)
+sns.kdeplot(X_train['lotarea'], ax=ax1)
+ax2.set_title('After Normalizer Scaler')
+sns.kdeplot(X_train_normalizer['finishedarea'], ax=ax2)
+sns.kdeplot(X_train_normalizer['latitude'], ax=ax2)
+sns.kdeplot(X_train_normalizer['longitude'], ax=ax2)
+sns.kdeplot(X_train_normalizer['lotarea'], ax=ax2)
+plt.show()
+
+# perform a Decision Tree Regression on the scaled data
+decisiontree_normalizer = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=15)
+decisiontree_normalizer.fit(X_train_normalizer, y_train)
+y_pred_dc_normalizer = decisiontree_normalizer.predict(X_test_normalizer)
+print("Normalizer score: {}".format(mean_absolute_error(y_test, y_pred_dc_normalizer)))
