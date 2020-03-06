@@ -1,5 +1,5 @@
 import math
-import statistics as stats
+# import statistics as stats
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +8,9 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.preprocessing import Normalizer, StandardScaler, MinMaxScaler, RobustScaler, MaxAbsScaler, PowerTransformer
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+import seaborn as sns
+from scipy.stats import norm
+from scipy import stats
 
 def high_null_count(df, thresh):
     """
@@ -159,8 +162,8 @@ def fill_dummy_na(data):
 def impute_na(data):
 
     # Fill lot area and finished area with median
-    data['lotarea'] = data.lotarea.fillna(stats.median(data['lotarea']))
-    data['finishedarea'] = data.finishedarea.fillna(stats.median(data['finishedarea']))
+    # data['lotarea'] = data.lotarea.fillna(stats.median(data['lotarea']))
+    # data['finishedarea'] = data.finishedarea.fillna(stats.median(data['finishedarea']))
 
     # filling quality build column
     #print(train.corr().loc['qualitybuild',:])
@@ -281,4 +284,56 @@ def model_selecter(X, y, max_depth=30, scaler=None):
     plt.xlabel('Max Depth')
     plt.ylabel('Mean Absolute Error')
     plt.title('Mean Absolute Error By Tree Type')
+    plt.show()
+
+def eval_norm_dist_after_log_trans(feat,name):
+    color = sns.color_palette()
+    sns.set_style('darkgrid')
+    pd.set_option('display.float_format', lambda x: '{:.3f}'.format(x))  # Limiting floats output to 3 decimal points
+    sns.set()
+
+    sns.distplot(feat, fit=norm);
+
+    # Get the fitted parameters used by the function
+    (mu, sigma) = norm.fit(feat)
+    print( '\n mu = {:.2f} and sigma = {:.2f}\n'.format(mu, sigma))
+
+    #Now plot the distribution
+    plt.legend(['Normal dist. ($\mu=$ {:.2f} and $\sigma=$ {:.2f} )'.format(mu, sigma)],
+                loc='best')
+    plt.ylabel('Frequency')
+    plt.title(name + ' Distribution')
+    plt.show()
+    #Get also the QQ-plot
+    fig = plt.figure()
+    res = stats.probplot(feat, plot=plt)
+    plt.show()
+
+    # Log-transformation of the target variable
+    #We use the numpy fuction log1p which  applies log(1+x) to all elements of the column
+    feat_log = np.log1p(feat)
+
+    #Check the new distribution
+    sns.distplot(feat_log, fit=norm)
+    plt.show()
+    # Get the fitted parameters used by the function
+    (mu, sigma) = norm.fit(feat_log)
+    print( '\n mu = {:.2f} and sigma = {:.2f}\n'.format(mu, sigma))
+
+    #Now plot the distribution
+    plt.legend(['Normal dist. ($\mu=$ {:.2f} and $\sigma=$ {:.2f} )'.format(mu, sigma)], loc='best')
+    plt.ylabel('Frequency')
+    plt.title(name + ' Log(1+x) distribution')
+
+    #Get also the QQ-plot
+    fig = plt.figure()
+    res = stats.probplot(feat_log, plot=plt)
+    plt.show()
+
+def plot_target_vs_var(data,target,var):
+    data = pd.concat([data[target], data[var]], axis=1)
+    f, ax = plt.subplots(figsize=(16, 8))
+    fig = sns.boxplot(x=var, y=target, data=data, showfliers=False)
+    fig.axis(ymin=0, ymax=max(data[target]));
+    plt.xticks(rotation=90);
     plt.show()

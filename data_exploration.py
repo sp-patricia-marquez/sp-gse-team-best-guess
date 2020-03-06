@@ -1,3 +1,4 @@
+## LOAD LIBRARIES ------------------------------------------------------------------------------------------------------
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import matplotlib.pyplot as plt  # Matlab-style plotting
@@ -5,6 +6,7 @@ import seaborn as sns
 import helper_functions.winter_school_helper as hf
 from sklearn.cluster import KMeans
 import random
+from statistics import mode,median,mean,variance
 
 color = sns.color_palette()
 sns.set_style('darkgrid')
@@ -20,6 +22,7 @@ pd.set_option('display.float_format', lambda x: '{:.3f}'.format(x)) #Limiting fl
 
 sns.set()
 
+## INITIAL TREATMENT OF THE DATA ---------------------------------------------------------------------------------------
 # Read in the data --------------------------------------------------------------------
 train = pd.read_csv('Data/Regression_Supervised_Train.csv', index_col='lotid')
 # Drop all rows where parcelvalue is null
@@ -43,7 +46,7 @@ plt.xlabel('totalarea', fontsize=13)
 plt.show()
 
 
-# Target variable ---------------------------------------------------------------------
+## TARGET VARIABLE  ----------------------------------------------------------------------------------------------------
 sns.distplot(train['parcelvalue'], fit=norm);
 
 # Get the fitted parameters used by the function
@@ -102,7 +105,7 @@ plt.title('Percent missing data by feature', fontsize=15)
 plt.show()
 
 #clean_train = clean_data(train)
-# Featuring ----------------------------------------------------------------------------------------
+## DEALING WITH NAS ----------------------------------------------------------------------------------------------------
 # FILL DUMMY NA COLUMNS
 clean_train = hf.fill_dummy_na(train)
 
@@ -114,32 +117,152 @@ clean_train = hf.impute_na(clean_train)
 
 
 # CHECK AGAIN NULL VALUES
-train_na = (clean_train.isnull().sum() / len(train)) * 100
+train_na = (clean_train.isnull().sum() / len(clean_train)) * 100
 train_na = train_na.drop(train_na[train_na == 0].index).sort_values(ascending=False)[:30]
 missing_data = pd.DataFrame({'Missing Ratio' :train_na})
 missing_data.head(20)
 
-
 # Drop columns where can't extrapolate data
 clean_train = clean_train.drop(columns=['neighborhoodcode','citycode','regioncode'], axis=1)
 
-# Dummy Variables
-clean_train['transactiondate'] = pd.to_datetime(clean_train['transactiondate'])
-clean_train['transactiondate'] = clean_train.transactiondate.apply(lambda x: x.strftime('%Y-%m'))
+#Check lotarea -------------------
+lot_area = clean_train['lotarea']
+lot_area = lot_area[lot_area.notnull()]
+hf.eval_norm_dist_after_log_trans(lot_area,'Lot Area')
 
-# Drop more outlying data in unitnum column
-print(clean_train.unitnum.value_counts())
-clean_train = clean_train[clean_train['unitnum'] < 7]
+lot_area_imp = clean_train['lotarea']
+lot_area_imp = lot_area_imp.fillna(mode(lot_area))
+hf.eval_norm_dist_after_log_trans(lot_area_imp,'Lot Area Imputed with mode')
 
+# Impute lot area with mode:
+clean_train['lotarea_mode'] = clean_train.lotarea.fillna(mode(lot_area))
+clean_train['lotarea_median'] = clean_train.lotarea.fillna(median(lot_area))
 
-var = 'year'
-data = pd.concat([clean_train['parcelvalue'], clean_train[var]], axis=1)
-f, ax = plt.subplots(figsize=(16, 8))
-fig = sns.boxplot(x=var, y='parcelvalue', data=data, showfliers= False)
-fig.axis(ymin=0, ymax=800000);
-plt.xticks(rotation=90);
+# Check which transformation is better:
+
+# Need to so something about lotarea
+sns.distplot(clean_train['lotarea_mode'], fit=norm)
+plt.title('Distribution of Lotarea', fontsize=15)
 plt.show()
 
+# Log transform the lotarea
+clean_train["lotarea_log"] = np.log1p(clean_train["lotarea_mode"])
+fig, ax = plt.subplots()
+ax.scatter(clean_train['lotarea_log'], clean_train['parcelvalue_log'])
+plt.ylabel('parcelvalue_log', fontsize=13)
+plt.xlabel('lotarea_log', fontsize=13)
+plt.show()
+
+# After log transform
+sns.distplot(clean_train['lotarea_log'], fit=norm)
+plt.title('Distribution of lotarea_log After Drop', fontsize=15)
+plt.show()
+
+# WINNER: mode!!!!
+clean_train['lotarea'] = clean_train.lotarea.fillna(mode(lot_area))
+clean_train = clean_train.drop(columns=['lotarea_mode','lotarea_median'], axis=1)
+
+# Check finished area -------------------
+finished_area = clean_train['finishedarea']
+finished_area = finished_area[finished_area.notnull()]
+hf.eval_norm_dist_after_log_trans(finished_area,'Finished Area')
+
+finished_area_imp = clean_train['finishedarea']
+finished_area_imp = finished_area.fillna(mode(finished_area_imp))
+hf.eval_norm_dist_after_log_trans(finished_area_imp,'Lot Area Imputed with mode')
+
+# Impute finishedarea with mode:
+clean_train['finishedarea_mode'] = clean_train.finishedarea.fillna(mode(finished_area))
+clean_train['finishedarea_median'] = clean_train.finishedarea.fillna(median(finished_area))
+clean_train['finishedarea_mean'] = clean_train.finishedarea.fillna(mean(finished_area))
+
+# Check which transformation is better:
+
+# Need to do the same with 'finishedarea'
+sns.distplot(clean_train['finishedarea_mean'], fit=norm)
+plt.title('Distribution of finishedarea', fontsize=15)
+plt.show()
+
+clean_train["finishedarea_log"] = np.log1p(clean_train["finishedarea_mean"])
+fig, ax = plt.subplots()
+ax.scatter(clean_train['finishedarea_log'], clean_train['parcelvalue_log'])
+plt.ylabel('parcelvalue_log', fontsize=13)
+plt.xlabel('finishedarea_log', fontsize=13)
+plt.show()
+
+sns.distplot(clean_train['finishedarea_log'], fit=norm)
+plt.title('Distribution of finishedarea_log', fontsize=15)
+plt.show()
+
+# And the winner is .... NONE OF THEM!!!
+# Since parcel value and finished area seem to be correlated, and also the null values are below 5%,
+# we decide to drop rows with nul finished area!
+
+clean_train = clean_train[clean_train['finishedarea'].notnull()]
+clean_train = clean_train.drop(columns=['finishedarea_mean','finishedarea_median','finishedarea_mode'], axis=1)
+#---------------------
+summary = clean_train.describe()
+summary = summary.transpose()
+summary
+
+clean_train.info()
+
+np.sort(clean_train.columns).tolist()
+
+
+## REMOVING 0-1 VARIABLES WITH LOW VARIANCE ----------------------------------------------------------------------------
+# https://scikit-learn.org/stable/modules/feature_selection.html
+max_val = clean_train.max()
+col_names = max_val[max_val == 1].index.values
+
+bernoulli_cols = clean_train[col_names]
+
+from sklearn.feature_selection import VarianceThreshold
+
+sel = VarianceThreshold(threshold=(.8 * (1 - .8)))
+# VarianceThreshold needs array format
+sel.fit_transform(bernoulli_cols.values)
+# Remaining columns:
+final_cols = col_names[sel.get_support(indices=True)]
+# Columns to drop, since the variance is low:
+drop_cols = list(filter(lambda x : x not in final_cols, col_names))
+clean_train = clean_train.drop(columns=drop_cols, axis=1)
+
+
+## FEATURING THE OTHER VARIABLES ----------------------------------------------------------------------------------------
+# Listing the variables:
+np.sort(clean_train.columns).tolist()
+
+# -- Countycode and countycode2
+hf.plot_target_vs_var(clean_train,'parcelvalue','countycode')
+hf.plot_target_vs_var(clean_train,'parcelvalue','countycode2')
+corrmat = clean_train.corr()
+plt.subplots(figsize=(12, 9))
+sns.heatmap(corrmat, vmax=0.9, square=True)
+plt.show()
+corrmat['countycode']['countycode2']
+corrmat['parcelvalue']['countycode']
+corrmat['parcelvalue']['countycode2']
+# Countycode and countycode2 have a high correlation (0.6) and countycode2 has slightly higher
+# correlation with parcelvalue, thus we drop countycode and later will transform as dummies
+clean_train = clean_train.drop(columns='countycode', axis=1)
+
+
+# -- Transaction date
+clean_train['transactiondate'] = pd.to_datetime(clean_train['transactiondate'])
+clean_train['transactiondate'] = clean_train.transactiondate.apply(lambda x: x.strftime('%Y'))
+hf.plot_target_vs_var(clean_train,'parcelvalue','transactiondate')
+# Powereye, does not show significant change (pending to do a proper statistical test) --> we drop this column
+clean_train = clean_train.drop(columns=['transactiondate'], axis=1)
+
+# -- Tax year
+hf.plot_target_vs_var(clean_train,'parcelvalue','taxyear')
+# Powereye, does not show significant change (pending to do a proper statistical test) --> we drop this column
+clean_train = clean_train.drop(columns=['taxyear'], axis=1)
+
+# -- year
+var = 'year'
+hf.plot_target_vs_var(clean_train,'parcelvalue','year')
 #YEAR, CHECK CLUSTERING OF YEAR TO BIN THE FEATURE TO THEN MAKE DUMMY VALUES
 year_x = clean_train[['parcelvalue_log', 'year']]
 wcss = []
@@ -160,87 +283,49 @@ print(kmeans.labels_)
 
 clean_train['year_cat'] = kmeans.labels_
 
-var = 'year'
-data = pd.concat([clean_train['year_cat'], clean_train[var]], axis=1)
-f, ax = plt.subplots(figsize=(16, 8))
-fig = sns.boxplot(x=var, y='year_cat', data=data, showfliers= False)
-fig.axis(ymin=0, ymax=5);
-plt.xticks(rotation=90);
-plt.show()
 
+hf.plot_target_vs_var(clean_train,'year_cat','year')
 clean_train = clean_train.drop(columns=['year'], axis=1)
 
-# Dropping countycode2 as dupe of countycode
-clean_train = clean_train.drop(columns=['countycode2'], axis=1)
+# -- unitnum
+print(clean_train.unitnum.value_counts())
+hf.plot_target_vs_var(clean_train,'parcelvalue','unitnum')
+clean_train = clean_train[clean_train['unitnum'] < 7]
 
-# Dummy Data & Categorical data----------------------------------------------------
-dummy_columns = ['countycode', 'taxyear', 'year_cat']
+
+
+## Dummy Data & Categorical data -------------------------------------------------------------------------------
+dummy_columns = ['countycode2', 'year_cat']
 clean_train = pd.get_dummies(clean_train, columns=dummy_columns, drop_first=True)
 
-# Data outlier cleaning ----------------------------------------------------------------------------------------
+# Clean remaining shits from exploration ------------------------------------------------------------------------------
+clean_train = clean_train.drop(columns=['finishedarea', 'lotarea','parcelvalue'], axis=1)
+np.sort(clean_train.columns).tolist()
 
-# Need to so something about lotarea
-sns.distplot(clean_train['lotarea'], fit=norm)
-plt.title('Distribution of Lotarea', fontsize=15)
-plt.show()
-
-# Log transform the lotarea
-clean_train["lotarea_log"] = np.log1p(clean_train["lotarea"])
-fig, ax = plt.subplots()
-ax.scatter(clean_train['lotarea_log'], clean_train['parcelvalue_log'])
-plt.ylabel('parcelvalue_log', fontsize=13)
-plt.xlabel('lotarea_log', fontsize=13)
-plt.show()
-
-# After log transform
-sns.distplot(clean_train['lotarea_log'], fit=norm)
-plt.title('Distribution of lotarea_log After Drop', fontsize=15)
-plt.show()
-
-# Need to do the same with 'finishedarea'
-sns.distplot(clean_train['finishedarea'], fit=norm)
-plt.title('Distribution of finishedarea', fontsize=15)
-plt.show()
-
-clean_train["finishedarea_log"] = np.log1p(clean_train["finishedarea"])
-fig, ax = plt.subplots()
-ax.scatter(clean_train['finishedarea_log'], clean_train['parcelvalue_log'])
-plt.ylabel('parcelvalue_log', fontsize=13)
-plt.xlabel('finishedarea_log', fontsize=13)
-plt.show()
-
-sns.distplot(clean_train['finishedarea_log'], fit=norm)
-plt.title('Distribution of finishedarea_log', fontsize=15)
-plt.show()
+# Drop lat and long for now
+clean_train = clean_train.drop(columns=['latitude', 'longitude'], axis=1)
 
 # Scaling and training ------------------------------------------------------------------------------------
-# Need to drop 'transactiondate' as it is an object and parcelvalue as we have parcelvalue_log
-clean_train = clean_train.drop(columns=['parcelvalue', 'transactiondate'], axis=1)
 
 # Split data into feature and target (X, y)
 X = clean_train.drop(columns=['parcelvalue_log'], axis=1)
 y = clean_train['parcelvalue_log']
 
 # select the categorical data
-cat_data = ['tubflag',
-            'poolnum',
-            'fireplace',
-            'taxdelinquencyflag',
+cat_data = ['countycode2_2061.0',
+            'countycode2_3101.0',
             'is_aircond',
             'is_heating',
-            'countycode_6059.0',
-            'countycode_6111.0',
-            'taxyear_2016.0',
-            'numstories_2.0',
-            'numstories_3.0',
-            'numstories_4.0',
+            'qualitybuild',
             'year_cat_1',
             'year_cat_2',
             'year_cat_3',
             'year_cat_4']
 
+
 # Select the continuous data
-cont_data = [x for x in list(X.columns) if x not in cat_data]
+cont_data_log = ['lotarea_log', 'finishedarea_log']
+cont_data = ['numbath', 'numbedroom', 'numfireplace', 'garagenum', 'garagearea', 'poolnum', 'roomnum', 'unitnum', 'numstories']
 
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, Normalizer
