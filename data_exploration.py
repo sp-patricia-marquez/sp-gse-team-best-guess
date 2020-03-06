@@ -160,13 +160,21 @@ print(kmeans.labels_)
 
 clean_train['year_cat'] = kmeans.labels_
 
+var = 'year'
+data = pd.concat([clean_train['year_cat'], clean_train[var]], axis=1)
+f, ax = plt.subplots(figsize=(16, 8))
+fig = sns.boxplot(x=var, y='year_cat', data=data, showfliers= False)
+fig.axis(ymin=0, ymax=5);
+plt.xticks(rotation=90);
+plt.show()
+
 clean_train = clean_train.drop(columns=['year'], axis=1)
 
 # Dropping countycode2 as dupe of countycode
 clean_train = clean_train.drop(columns=['countycode2'], axis=1)
 
 # Dummy Data & Categorical data----------------------------------------------------
-dummy_columns = ['countycode', 'taxyear', 'numstories', 'year_cat']
+dummy_columns = ['countycode', 'taxyear', 'year_cat']
 clean_train = pd.get_dummies(clean_train, columns=dummy_columns, drop_first=True)
 
 # Data outlier cleaning ----------------------------------------------------------------------------------------
@@ -176,11 +184,17 @@ sns.distplot(clean_train['lotarea'], fit=norm)
 plt.title('Distribution of Lotarea', fontsize=15)
 plt.show()
 
-# Going to drop all row with lot area over 50,000
-clean_train = clean_train.drop(clean_train[clean_train['lotarea'] > 50000].index)
+# Log transform the lotarea
+clean_train["lotarea_log"] = np.log1p(clean_train["lotarea"])
+fig, ax = plt.subplots()
+ax.scatter(clean_train['lotarea_log'], clean_train['parcelvalue_log'])
+plt.ylabel('parcelvalue_log', fontsize=13)
+plt.xlabel('lotarea_log', fontsize=13)
+plt.show()
 
-sns.distplot(clean_train['lotarea'], fit=norm)
-plt.title('Distribution of Lotarea After Drop', fontsize=15)
+# After log transform
+sns.distplot(clean_train['lotarea_log'], fit=norm)
+plt.title('Distribution of lotarea_log After Drop', fontsize=15)
 plt.show()
 
 # Need to do the same with 'finishedarea'
@@ -188,11 +202,15 @@ sns.distplot(clean_train['finishedarea'], fit=norm)
 plt.title('Distribution of finishedarea', fontsize=15)
 plt.show()
 
-# Going to drop all row with finishedarea over 6,000
-clean_train = clean_train.drop(clean_train[clean_train['finishedarea'] > 6000].index)
+clean_train["finishedarea_log"] = np.log1p(clean_train["finishedarea"])
+fig, ax = plt.subplots()
+ax.scatter(clean_train['finishedarea_log'], clean_train['parcelvalue_log'])
+plt.ylabel('parcelvalue_log', fontsize=13)
+plt.xlabel('finishedarea_log', fontsize=13)
+plt.show()
 
-sns.distplot(clean_train['finishedarea'], fit=norm)
-plt.title('Distribution of finishedarea', fontsize=15)
+sns.distplot(clean_train['finishedarea_log'], fit=norm)
+plt.title('Distribution of finishedarea_log', fontsize=15)
 plt.show()
 
 # Scaling and training ------------------------------------------------------------------------------------
@@ -207,13 +225,6 @@ y = clean_train['parcelvalue_log']
 cat_data = ['tubflag',
             'poolnum',
             'fireplace',
-            'numbath',
-            'numbedroom',
-            'qualitybuild',
-            'numfireplace',
-            'garagenum',
-            'roomnum',
-            'unitnum',
             'taxdelinquencyflag',
             'is_aircond',
             'is_heating',
