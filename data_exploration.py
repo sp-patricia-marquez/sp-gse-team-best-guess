@@ -328,6 +328,7 @@ cont_data_log = ['lotarea_log', 'finishedarea_log']
 cont_data = ['numbath', 'numbedroom', 'numfireplace', 'garagenum', 'garagearea', 'poolnum', 'roomnum', 'unitnum', 'numstories']
 
 from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, Normalizer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error
@@ -349,28 +350,11 @@ X_test_standardscaler = X_test.copy()
 X_train_standardscaler[cont_data] = scaler.fit_transform(X_train_standardscaler[cont_data])
 X_test_standardscaler[cont_data] = scaler.transform(X_test_standardscaler[cont_data])
 
-
-# Check the results
-fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(6, 5))
-
-ax1.set_title('Before Scaling')
-sns.kdeplot(X_train['finishedarea'], ax=ax1)
-sns.kdeplot(X_train['latitude'], ax=ax1)
-sns.kdeplot(X_train['longitude'], ax=ax1)
-sns.kdeplot(X_train['lotarea'], ax=ax1)
-ax2.set_title('After Standard Scaler')
-sns.kdeplot(X_train_standardscaler['finishedarea'], ax=ax2)
-sns.kdeplot(X_train_standardscaler['latitude'], ax=ax2)
-sns.kdeplot(X_train_standardscaler['longitude'], ax=ax2)
-sns.kdeplot(X_train_standardscaler['lotarea'], ax=ax2)
-plt.show()
-
 # perform a Decision Tree Regression on the scaled data
 decisiontree_standardscaler = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=15)
 decisiontree_standardscaler.fit(X_train_standardscaler, y_train)
 y_pred_dc_standardscaler = decisiontree_standardscaler.predict(X_test_standardscaler)
 print("Standard Scaler score: {}".format(mean_absolute_error(y_test, y_pred_dc_standardscaler)))
-
 
 # Perform MinMax Scaling on only the continuous data
 scaler = MinMaxScaler()
@@ -381,21 +365,6 @@ X_test_minmax = X_test.copy()
 # Fit the scalar on the train data then transform both the train and test data
 X_train_minmax[cont_data] = scaler.fit_transform(X_train_minmax[cont_data])
 X_test_minmax[cont_data] = scaler.transform(X_test_minmax[cont_data])
-
-# Check the results
-fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(6, 5))
-
-ax1.set_title('Before Scaling')
-sns.kdeplot(X_train['finishedarea'], ax=ax1)
-sns.kdeplot(X_train['latitude'], ax=ax1)
-sns.kdeplot(X_train['longitude'], ax=ax1)
-sns.kdeplot(X_train['lotarea'], ax=ax1)
-ax2.set_title('After MinMax Scaler')
-sns.kdeplot(X_train_minmax['finishedarea'], ax=ax2)
-sns.kdeplot(X_train_minmax['latitude'], ax=ax2)
-sns.kdeplot(X_train_minmax['longitude'], ax=ax2)
-sns.kdeplot(X_train_minmax['lotarea'], ax=ax2)
-plt.show()
 
 # perform a Decision Tree Regression on the scaled data
 decisiontree_minmax = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=15)
@@ -414,21 +383,6 @@ X_test_normalizer = X_test.copy()
 X_train_normalizer[cont_data] = scaler.fit_transform(X_train_normalizer[cont_data])
 X_test_normalizer[cont_data] = scaler.transform(X_test_normalizer[cont_data])
 
-# Check the results
-fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(6, 5))
-
-ax1.set_title('Before Scaling')
-sns.kdeplot(X_train['finishedarea'], ax=ax1)
-sns.kdeplot(X_train['latitude'], ax=ax1)
-sns.kdeplot(X_train['longitude'], ax=ax1)
-sns.kdeplot(X_train['lotarea'], ax=ax1)
-ax2.set_title('After Normalizer Scaler')
-sns.kdeplot(X_train_normalizer['finishedarea'], ax=ax2)
-sns.kdeplot(X_train_normalizer['latitude'], ax=ax2)
-sns.kdeplot(X_train_normalizer['longitude'], ax=ax2)
-sns.kdeplot(X_train_normalizer['lotarea'], ax=ax2)
-plt.show()
-
 # perform a Decision Tree Regression on the scaled data
 decisiontree_normalizer = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=15)
 decisiontree_normalizer.fit(X_train_normalizer, y_train)
@@ -444,3 +398,40 @@ for col in columns:
     corr = clean_train['parcelvalue_log'].corr(clean_train[col])
     correlation_dict[col] = round(corr, 5)
     print("Column: {} has a correlation of {}".format(col, round(corr, 5)))
+
+
+leaf_nodes = list(range(2, 21))
+dc_mae_score = []
+for x in range(2, 21):
+    decisiontree = DecisionTreeRegressor(min_samples_split=100, max_leaf_nodes=x)
+    decisiontree.fit(X_train_normalizer, y_train)
+    y_pred_dc = decisiontree.predict(X_test_normalizer)
+    dc_mae_score.append(mean_absolute_error(y_test, y_pred_dc))
+
+# Random Forest
+rf_mae_score = []
+for x in range(2, 21):
+    forest = RandomForestRegressor(min_samples_split=100, max_depth=x)
+    forest.fit(X_train_normalizer, y_train)
+    y_pred_f = forest.predict(X_test_normalizer)
+    rf_mae_score.append(mean_absolute_error(y_test, y_pred_f))
+
+# Gradient Boosting
+gb_mae_score = []
+for x in range(2, 21):
+    grd_boost = GradientBoostingRegressor(min_samples_split=100, max_depth=x, subsample=0.8)
+    grd_boost.fit(X_train_normalizer, y_train)
+    y_pred_gb = grd_boost.predict(X_test_normalizer)
+    gb_mae_score.append(mean_absolute_error(y_test, y_pred_gb))
+
+# Plot results
+plt.plot(leaf_nodes, dc_mae_score, label='Decision Tree', marker='.')
+plt.plot(leaf_nodes, rf_mae_score, label='Random Forest', marker='.')
+plt.plot(leaf_nodes, gb_mae_score, label='Gradient Boosting', marker='.')
+plt.legend(loc="upper right")
+plt.xlabel('Max Depth')
+plt.ylabel('Mean Absolute Error')
+plt.title('Mean Absolute Error By Tree Type')
+plt.show()
+
+# Best model is a Gradient Boosting Regressor with a depth of 8
