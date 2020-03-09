@@ -11,6 +11,7 @@ from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 import seaborn as sns
 from scipy.stats import norm
 from scipy import stats
+from statistics import mode
 
 def high_null_count(df, thresh):
     """
@@ -337,3 +338,89 @@ def plot_target_vs_var(data,target,var):
     fig.axis(ymin=0, ymax=max(data[target]));
     plt.xticks(rotation=90);
     plt.show()
+
+
+
+# k.mean categories for year
+def year_cat_function(year):
+    if year >= 1878 and year <= 1937:
+        return 3
+    elif year >= 1938 and year <= 1959:
+        return 1
+    elif year >= 1960 and year <= 1975:
+        return 4
+    elif year >= 1976 and year <= 1993:
+        return 0
+    elif year >= 1994 and year <= 2016:
+        return 2
+
+
+
+def base_data_clean(data):
+    data = data[data['parcelvalue'].notnull()]
+
+    #Deleting outliers
+    data = data.drop(data[(data['totalarea']>15000) | (data['parcelvalue']>6000000)].index)
+
+    # Log-transformation of the target variable
+    #We use the numpy fuction log1p which  applies log(1+x) to all elements of the column
+    data["parcelvalue_log"] = np.log1p(data["parcelvalue"])
+
+    data = data.drop(data[(data['parcelvalue_log']<8)].index)
+
+    #clean_train = clean_data(train)
+    ## DEALING WITH NAS ----------------------------------------------------------------------------------------------------
+    # FILL DUMMY NA COLUMNS
+    clean_dt = fill_dummy_na(data)
+
+    # REMOVE COLUMNS WITH HIGH NUMBER OF NA's AND NO TARGET VALUE AND VERY EMPTY ROWS
+    clean_dt = clean_nulls(clean_dt)
+
+    # WE IMPUTE MISSING VALUES
+    clean_dt = impute_na(clean_dt)
+
+    # Drop columns where can't extrapolate data
+    clean_dt = clean_dt.drop(columns=['neighborhoodcode','citycode','regioncode'], axis=1)
+
+    #Lot area
+    # WINNER: mode!!!!
+    lot_area = clean_dt['lotarea']
+    lot_area = lot_area[lot_area.notnull()]
+    clean_dt['lotarea'] = clean_dt.lotarea.fillna(mode(lot_area))
+
+    # Check finished area -------------------
+    clean_dt = clean_dt[clean_dt['finishedarea'].notnull()]
+
+    # Listing the variables:
+    clean_dt = clean_dt.drop(columns='countycode', axis=1)
+
+    # -- Transaction date
+    clean_dt = clean_dt.drop(columns=['transactiondate'], axis=1)
+
+    # -- Tax year
+    clean_dt = clean_dt.drop(columns=['taxyear'], axis=1)
+
+    # Columns to drop, since the variance is low:
+    drop_cols = ['tubflag', 'fireplace', 'taxdelinquencyflag']
+    clean_dt = clean_dt.drop(columns=drop_cols, axis=1)
+
+    # IMPORTA KMEANS YEAR CATEGORY
+    clean_dt['year_cat'] = clean_dt.apply(lambda x: year_cat_function(x['year']), axis=1)
+
+    # unitnum drops
+    clean_dt = clean_dt[clean_dt['unitnum'] < 7]
+
+    # Clean remaining shits from exploration ------------------------------------------------------------------------------
+    clean_dt = clean_dt.drop(columns=['finishedarea', 'lotarea'], axis=1)
+
+    # Drop lat and long for now
+    clean_dt = clean_dt.drop(columns=['latitude', 'longitude'], axis=1)
+
+    ## Dummy Data & Categorical data
+    dummy_columns = ['countycode2', 'year_cat']
+    clean_dt = pd.get_dummies(clean_dt, columns=dummy_columns, drop_first=True)
+
+    #hot fix on quality build
+    clean_dt = clean_dt[clean_dt['qualitybuild'].notnull()]
+
+    return clean_dt
