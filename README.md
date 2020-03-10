@@ -15,11 +15,13 @@ In this part we have only used the train data set: 'Data/Regression_Supervised_T
     - Normalization scaler for continuous variables.
     
 2. Models exploration:
+
    Tested different models: decission tree, random forest and gradient boosting.
-       
+
    - Varied depth of the trees to get the depth with best performance.
    - Tested different scaling on continuous variables to choose the one with best performance.
    - Explored the loss function to get better performance.
+
 
 # 2_prediction_and_evaluation
 
