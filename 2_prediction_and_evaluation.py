@@ -69,6 +69,7 @@ y_pred_gb = grd_boost.predict(X_test_normalizer)
 # Inverse the log transform
 y_test_real = np.expm1(y_test)
 y_pred_gb_real = np.expm1(y_pred_gb)
+print('Mean Absolute Error for the test subset from the Train Dataset:')
 print(mean_absolute_error(y_test_real, y_pred_gb_real))
 
 
@@ -82,6 +83,7 @@ y_validate = clean_test['parcelvalue_log']
 y_val_predicted = grd_boost.predict(X_validate)
 y_validate_real = np.expm1(y_validate)
 y_val_predicted_real = np.expm1(y_val_predicted)
+print('Mean Absolute Error for the Test Dataset:')
 print(mean_absolute_error(y_validate_real, y_val_predicted_real))
 
 import matplotlib.pyplot as plt
