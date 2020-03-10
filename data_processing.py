@@ -63,13 +63,13 @@ X_test_normalizer[cont_data] = scaler.transform(X_test_normalizer[cont_data])
 
 # Best model is a Gradient Boosting Regressor with a depth of 8
 random.seed(6123)
-grd_boost = GradientBoostingRegressor(min_samples_split=100, max_depth=8, subsample=0.8)
+grd_boost = GradientBoostingRegressor(min_samples_split=100, max_depth=8, subsample=0.8, loss='huber')
 grd_boost.fit(X_train_normalizer, y_train)
 y_pred_gb = grd_boost.predict(X_test_normalizer)
 # Inverse the log transform
-y_test = np.expm1(y_test)
-y_pred_gb = np.expm1(y_pred_gb)
-print(mean_absolute_error(y_test, y_pred_gb))
+y_test_real = np.expm1(y_test)
+y_pred_gb_real = np.expm1(y_pred_gb)
+print(mean_absolute_error(y_test_real, y_pred_gb_real))
 
 
 # FINAL TEST OVER TEST DATASET
@@ -80,7 +80,7 @@ X_validate = clean_test.drop(columns=['parcelvalue_log'], axis=1)
 y_validate = clean_test['parcelvalue_log']
 
 y_val_predicted = grd_boost.predict(X_validate)
-y_validate = np.expm1(y_validate)
-y_val_predicted = np.expm1(y_val_predicted)
-print(mean_absolute_error(y_validate, y_val_predicted))
+y_validate_real = np.expm1(y_validate)
+y_val_predicted_real = np.expm1(y_val_predicted)
+print(mean_absolute_error(y_validate_real, y_val_predicted_real))
 
