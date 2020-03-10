@@ -84,3 +84,9 @@ y_validate_real = np.expm1(y_validate)
 y_val_predicted_real = np.expm1(y_val_predicted)
 print(mean_absolute_error(y_validate_real, y_val_predicted_real))
 
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots()
+ax.scatter(y_validate_real, y_val_predicted_real)
+plt.ylabel('y_val_predicted_real', fontsize=13)
+plt.xlabel('y_validate_real', fontsize=13)
+plt.show()
